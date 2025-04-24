@@ -61,4 +61,18 @@ router.get('/usuarios/:email/recomendaciones', async (req, res) => {
     }
 });
 
+// Ruta para obtener libros recomendados para la página de inicio
+router.get('/libros-recomendados', async (req, res) => {
+    try {
+        const { limit = 4 } = req.query;
+        
+        const recomendados = await usuarioService.obtenerLibrosRecomendados(limit);
+        
+        res.json({ libros: recomendados });
+    } catch (error) {
+        console.error(`Error en GET /libros-recomendados:`, error);
+        res.status(500).json({ error: 'Error al obtener libros recomendados' });
+    }
+});
+
 module.exports = router;

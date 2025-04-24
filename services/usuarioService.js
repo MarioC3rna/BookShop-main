@@ -43,6 +43,9 @@ async function agregarLibroAlCarrito(email, libro) {
             MERGE (l)-[:PERTENECE_A]->(c)
         )
         
+        // Marcamos este libro como recomendado para futuros usuarios
+        SET l.recomendado = true
+
         RETURN l
     `;
     
@@ -93,6 +96,17 @@ async function obtenerRecomendaciones(email) {
         RETURN otroLibro.id as id, otroLibro.fuente as fuente, 
                otroLibro.titulo as titulo, otroLibro.autor as autor,
                otroLibro.portada as portada, otroLibro.descripcion as descripcion
+        
+        // Si no hay resultados, buscamos libros populares
+        UNION
+        MATCH (libro:Libro)
+        WHERE libro.recomendado = true
+        WITH libro, size(()-[:TIENE_EN_CARRITO]->(libro)) as popularidad
+        ORDER BY popularidad DESC
+        LIMIT 5
+        RETURN libro.id as id, libro.fuente as fuente, 
+               libro.titulo as titulo, libro.autor as autor, 
+               libro.portada as portada, libro.descripcion as descripcion
     `;
     
     try {
@@ -107,6 +121,42 @@ async function obtenerRecomendaciones(email) {
         }));
     } catch (error) {
         console.error('Error al obtener recomendaciones en Neo4j:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene libros recomendados para mostrar en la página de inicio
+ */
+async function obtenerLibrosRecomendados(limit = 4) {
+    // Consulta para obtener libros recomendados
+    const cypher = `
+        // Encontrar libros que han sido agregados al carrito por usuarios
+        MATCH (l:Libro)
+        WHERE l.recomendado = true
+        
+        // Opcionalmente podemos ordenar por popularidad si queremos
+        WITH l, size(()-[:TIENE_EN_CARRITO]->(l)) as popularidad
+        ORDER BY popularidad DESC
+        LIMIT $limit
+        
+        RETURN l.id as id, l.fuente as fuente, 
+               l.titulo as titulo, l.autor as autor,
+               l.portada as portada, l.descripcion as descripcion
+    `;
+    
+    try {
+        const result = await runQuery(cypher, { limit: parseInt(limit) });
+        return result.map(record => ({
+            id: record.get('id'),
+            fuente: record.get('fuente'),
+            titulo: record.get('titulo'),
+            autor: record.get('autor'),
+            portada: record.get('portada'),
+            descripcion: record.get('descripcion')
+        }));
+    } catch (error) {
+        console.error('Error al obtener libros recomendados en Neo4j:', error);
         throw error;
     }
 }
@@ -146,5 +196,6 @@ function extraerCategoriasDesdeTitulo(titulo) {
 module.exports = {
     crearUsuario,
     agregarLibroAlCarrito,
-    obtenerRecomendaciones
+    obtenerRecomendaciones,
+    obtenerLibrosRecomendados,  // Nueva función exportada
 };

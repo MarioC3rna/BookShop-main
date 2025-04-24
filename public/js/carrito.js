@@ -150,6 +150,8 @@ async function cargarRecomendaciones() {
     
     try {
         const librosRecomendados = document.getElementById('libros-recomendados');
+        if (!librosRecomendados) return;
+        
         librosRecomendados.innerHTML = '<p>Cargando recomendaciones...</p>';
         
         // Intentar obtener recomendaciones desde Neo4j
@@ -183,7 +185,7 @@ async function cargarRecomendaciones() {
             const temas = ['fiction', 'science', 'fantasy', 'history'];
             const temaAleatorio = temas[Math.floor(Math.random() * temas.length)];
             
-            const apiResponse = await fetch(`/api/libros?q=${temaAleatorio}&limit=4`);
+            const apiResponse = await fetch(`http://localhost:3000/api/libros?q=${temaAleatorio}&limit=4`);
             const apiData = await apiResponse.json();
             
             if (apiData.libros && apiData.libros.length > 0) {
@@ -214,12 +216,27 @@ async function cargarRecomendaciones() {
         }
     } catch (error) {
         console.error('Error al cargar recomendaciones:', error);
-        document.getElementById('libros-recomendados').innerHTML = 
-            '<p>Error al cargar recomendaciones</p>';
+        const librosRecomendados = document.getElementById('libros-recomendados');
+        if (librosRecomendados) {
+            librosRecomendados.innerHTML = '<p>Error al cargar recomendaciones</p>';
+        }
     }
 }
 
-// Función para agregar un libro al carrito (igual que en las otras páginas)
+// Función para guardar el libro en Neo4j cuando se agrega al carrito
+function guardarLibroEnNeo4j(email, libro) {
+    fetch(`http://localhost:3000/api/usuarios/${encodeURIComponent(email)}/carrito`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(libro)
+    }).catch(error => {
+        console.error('Error al guardar libro en Neo4j:', error);
+    });
+}
+
+// Actualizar la función agregarAlCarrito para guardar en Neo4j
 function agregarAlCarrito(id, fuente) {
     // Verificar si el usuario está logueado
     const usuario = JSON.parse(localStorage.getItem('usuario'));
@@ -254,6 +271,9 @@ function agregarAlCarrito(id, fuente) {
             
             // Guardar carrito actualizado
             localStorage.setItem('carrito', JSON.stringify(carrito));
+            
+            // También guardamos en Neo4j para recomendaciones futuras
+            guardarLibroEnNeo4j(usuario.email, libro);
             
             alert('Libro agregado al carrito');
             cargarCarrito(); // Actualizar la visualización del carrito

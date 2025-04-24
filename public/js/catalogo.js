@@ -75,7 +75,7 @@ function cambiarPagina(pagina) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Función para agregar un libro al carrito (igual que en index.js)
+// Función para agregar un libro al carrito 
 function agregarAlCarrito(id, fuente) {
     // Verificar si el usuario está logueado
     const usuario = JSON.parse(localStorage.getItem('usuario'));
@@ -111,12 +111,29 @@ function agregarAlCarrito(id, fuente) {
             // Guardar carrito actualizado
             localStorage.setItem('carrito', JSON.stringify(carrito));
             
+            // También guardamos en Neo4j para recomendaciones futuras
+            guardarLibroEnNeo4j(usuario.email, libro);
+            
             alert('Libro agregado al carrito');
         })
         .catch(error => {
             console.error('Error al agregar libro al carrito:', error);
             alert('Error al agregar el libro al carrito');
         });
+}
+
+// Nueva función para guardar el libro en Neo4j cuando se agrega al carrito
+function guardarLibroEnNeo4j(email, libro) {
+    fetch(`http://localhost:3000/api/usuarios/${encodeURIComponent(email)}/carrito`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(libro)
+    }).catch(error => {
+        console.error('Error al guardar libro en Neo4j:', error);
+        // No mostramos alerta al usuario porque este error no afecta la funcionalidad principal
+    });
 }
 
 // Cargar libros iniciales cuando se cargue la página
